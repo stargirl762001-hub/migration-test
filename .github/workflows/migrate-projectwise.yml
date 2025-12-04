@@ -59,67 +59,6 @@ jobs:
 
           # Create GitHub repo (if not exists)
           echo "Creating GitHub repo: $REPO"
-          name: Bitbucket → GitHub Migration (Project-wise)
-
-on:
-  workflow_dispatch:
-
-jobs:
-  migrate:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y jq git
-
-    - name: Fetch Bitbucket repos project-wise
-      id: list
-      run: |
-        WORKSPACE="${{ secrets.BITBUCKET_WORKSPACE }}"
-        USER="${{ secrets.BB_USER }}"
-        APP="${{ secrets.BB_APP_PASSWORD }}"
-
-        # Project keys
-        PROJECTS=("S567" "L654")
-
-        echo "repo,project,clone_url" > repos.csv
-
-        for PROJECT in "${PROJECTS[@]}"; do
-          echo "Fetching repos for project: $PROJECT"
-
-          API_URL="https://api.bitbucket.org/2.0/repositories/$WORKSPACE?q=project.key=\"$PROJECT\"&pagelen=100"
-
-          curl -s -u "$USER:$APP" "$API_URL" \
-          | jq -r ".values[] | \"\(.name),$PROJECT,\(.links.clone[0].href)\"" \
-          >> repos.csv
-        done
-
-        echo "==== REPOSITORIES DETECTED ===="
-        cat repos.csv
-
-    - name: Migrate Each Repo
-      run: |
-        while IFS=',' read -r REPO PROJECT CLONE_URL
-        do
-          # Skip header
-          [[ "$REPO" == "repo" ]] && continue
-
-          echo "======================================="
-          echo "Migrating REPO: $REPO (Project: $PROJECT)"
-          echo "======================================="
-
-          # Clone Bitbucket repository
-          git clone --mirror "$CLONE_URL"
-
-          cd "$REPO.git"
-
-          # Create GitHub repo (if not exists)
-          echo "Creating GitHub repo: $REPO"
           curl -L \
             -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
@@ -128,17 +67,7 @@ jobs:
 
           # Push all refs/branches/tags
           echo "Pushing to GitHub..."
-          git push --mirror "https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ secrets.GH_USER }}/$REPO.git"
-
-          cd ..
-        done < repos.csv
-
-    - name: Migration Complete
-      run: echo "🎉 All repositories migrated successfully!"
-
-          # Push all refs/branches/tags
-          echo "Pushing to GitHub..."
-          git push --mirror "https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ secrets.GH_USER }}/$REPO.git"
+          git push --mirror "https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ secrets.GITHUB_ORG }}/$REPO.git"
 
           cd ..
         done < repos.csv
